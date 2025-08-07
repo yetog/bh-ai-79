@@ -2,8 +2,8 @@ import { createClient } from '@supabase/supabase-js'
 
 // Using Lovable's native Supabase integration - credentials auto-injected
 export const supabase = createClient(
-  process.env.VITE_SUPABASE_URL!,
-  process.env.VITE_SUPABASE_ANON_KEY!
+  import.meta.env.VITE_SUPABASE_URL!,
+  import.meta.env.VITE_SUPABASE_ANON_KEY!
 )
 
 // Types for our database
