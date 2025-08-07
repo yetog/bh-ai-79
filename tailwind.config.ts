@@ -26,7 +26,8 @@ export default {
 				foreground: 'hsl(var(--foreground))',
 				primary: {
 					DEFAULT: 'hsl(var(--primary))',
-					foreground: 'hsl(var(--primary-foreground))'
+					foreground: 'hsl(var(--primary-foreground))',
+					glow: 'hsl(var(--primary-glow))'
 				},
 				secondary: {
 					DEFAULT: 'hsl(var(--secondary))',
@@ -84,11 +85,44 @@ export default {
 					to: {
 						height: '0'
 					}
+				},
+				'cosmic-glow': {
+					'0%, 100%': {
+						boxShadow: '0 0 20px hsl(270 80% 50% / 0.3)'
+					},
+					'50%': {
+						boxShadow: '0 0 40px hsl(270 80% 50% / 0.6)'
+					}
+				},
+				'float': {
+					'0%, 100%': {
+						transform: 'translateY(0px)'
+					},
+					'50%': {
+						transform: 'translateY(-10px)'
+					}
+				},
+				'pulse-accent': {
+					'0%, 100%': {
+						boxShadow: '0 0 30px hsl(180 100% 50% / 0.3)'
+					},
+					'50%': {
+						boxShadow: '0 0 50px hsl(180 100% 50% / 0.6)'
+					}
 				}
 			},
 			animation: {
 				'accordion-down': 'accordion-down 0.2s ease-out',
-				'accordion-up': 'accordion-up 0.2s ease-out'
+				'accordion-up': 'accordion-up 0.2s ease-out',
+				'cosmic-glow': 'cosmic-glow 2s ease-in-out infinite alternate',
+				'float': 'float 3s ease-in-out infinite',
+				'pulse-accent': 'pulse-accent 3s ease-in-out infinite'
+			},
+			backgroundImage: {
+				'gradient-cosmic': 'var(--gradient-cosmic)',
+				'gradient-event-horizon': 'var(--gradient-event-horizon)',
+				'gradient-void': 'var(--gradient-void)',
+				'gradient-glow': 'var(--gradient-glow)'
 			}
 		}
 	},
