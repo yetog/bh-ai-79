@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { Upload, FileText, Image, FileVideo, Music } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 
 interface FileUploadProps {
