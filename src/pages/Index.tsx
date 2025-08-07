@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Brain, Search, Upload, Lightbulb, ArrowRight, Zap, Star, Users } from 'lucide-react';
+import { Brain, Search, Upload, Lightbulb, ArrowRight, Zap, Star, Users, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -7,15 +7,39 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import FileUpload from '@/components/ui/file-upload';
 import SearchInterface from '@/components/ui/search-interface';
 import InsightsDashboard from '@/components/ui/insights-dashboard';
+import { AuthForm } from '@/components/AuthForm';
+import { useAuth } from '@/hooks/useAuth';
 import blackHoleHero from '@/assets/black-hole-hero.jpg';
 import { cn } from '@/lib/utils';
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState('upload');
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
+  const { user, loading, signOut } = useAuth();
+
+  // Show loading state
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-cosmic">
+        <div className="text-center space-y-4">
+          <Brain className="w-12 h-12 text-primary cosmic-glow mx-auto animate-pulse" />
+          <div className="text-lg text-muted-foreground">Loading your knowledge universe...</div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show auth form if not logged in
+  if (!user) {
+    return <AuthForm />;
+  }
 
   const handleFilesSelected = (files: File[]) => {
     setUploadedFiles(prev => [...prev, ...files]);
+  };
+
+  const handleSignOut = async () => {
+    await signOut();
   };
 
   const features = [
@@ -70,13 +94,31 @@ const Index = () => {
               <div className="absolute inset-0 rounded-full bg-gradient-glow opacity-50" />
             </div>
 
-            {/* Title & Description */}
+            {/* User Info & Title */}
             <div className="space-y-4">
+              <div className="flex items-center justify-center mb-4">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleSignOut}
+                  className="absolute top-4 right-4 gap-2 bg-muted/50 border-border/50"
+                >
+                  <LogOut className="h-4 w-4" />
+                  Sign Out
+                </Button>
+              </div>
+              
               <div className="flex items-center justify-center space-x-3 mb-6">
                 <Brain className="w-12 h-12 text-primary cosmic-glow" />
                 <h1 className="text-5xl md:text-7xl font-bold bg-gradient-to-r from-primary via-accent to-secondary bg-clip-text text-transparent">
                   Black Hole AI
                 </h1>
+              </div>
+              
+              <div className="text-center mb-4">
+                <span className="text-sm text-muted-foreground bg-muted/50 px-3 py-1 rounded-full">
+                  Welcome back, {user.email?.split('@')[0]}
+                </span>
               </div>
               
               <p className="text-xl md:text-2xl text-muted-foreground max-w-4xl mx-auto leading-relaxed">

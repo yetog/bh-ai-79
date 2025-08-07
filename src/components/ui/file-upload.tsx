@@ -1,6 +1,8 @@
 import React, { useState, useCallback } from 'react';
 import { Upload, FileText, Image, FileVideo, Music } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { supabase } from '@/lib/supabase';
+import { toast } from '@/hooks/use-toast';
 
 interface FileUploadProps {
   onFilesSelected: (files: File[]) => void;
@@ -11,27 +13,15 @@ const FileUpload: React.FC<FileUploadProps> = ({ onFilesSelected, className }) =
   const [isDragOver, setIsDragOver] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
 
-  const handleDrop = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+  const handleDrop = useCallback(async (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     setIsDragOver(false);
     
     const files = Array.from(e.dataTransfer.files);
     if (files.length > 0) {
-      onFilesSelected(files);
-      // Simulate upload progress
-      setUploadProgress(0);
-      const interval = setInterval(() => {
-        setUploadProgress(prev => {
-          if (prev === null || prev >= 100) {
-            clearInterval(interval);
-            setTimeout(() => setUploadProgress(null), 1000);
-            return 100;
-          }
-          return prev + 10;
-        });
-      }, 200);
+      await uploadFiles(files);
     }
-  }, [onFilesSelected]);
+  }, []);
 
   const handleDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -43,12 +33,76 @@ const FileUpload: React.FC<FileUploadProps> = ({ onFilesSelected, className }) =
     setIsDragOver(false);
   }, []);
 
-  const handleFileInput = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileInput = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (files.length > 0) {
-      onFilesSelected(files);
+      await uploadFiles(files);
     }
-  }, [onFilesSelected]);
+  }, []);
+
+  const uploadFiles = async (files: File[]) => {
+    setUploadProgress(0);
+    
+    try {
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('contentType', getContentType(file));
+        formData.append('source', 'manual');
+
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
+          toast({
+            title: 'Authentication Required',
+            description: 'Please sign in to upload files',
+            variant: 'destructive',
+          });
+          return;
+        }
+
+        const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/upload-content`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`,
+          },
+          body: formData,
+        });
+
+        if (!response.ok) {
+          throw new Error(`Upload failed for ${file.name}`);
+        }
+
+        // Update progress
+        setUploadProgress(((i + 1) / files.length) * 100);
+      }
+
+      onFilesSelected(files);
+      toast({
+        title: 'Upload Successful',
+        description: `${files.length} file(s) uploaded and processing started`,
+      });
+
+      // Reset progress after delay
+      setTimeout(() => setUploadProgress(null), 2000);
+    } catch (error) {
+      console.error('Upload error:', error);
+      toast({
+        title: 'Upload Failed',
+        description: error instanceof Error ? error.message : 'Unknown error occurred',
+        variant: 'destructive',
+      });
+      setUploadProgress(null);
+    }
+  };
+
+  const getContentType = (file: File): string => {
+    if (file.type.startsWith('image/')) return 'image';
+    if (file.type.startsWith('video/')) return 'video';
+    if (file.type.startsWith('audio/')) return 'audio';
+    if (file.name.toLowerCase().includes('chat') || file.name.toLowerCase().includes('whatsapp')) return 'chat';
+    return 'document';
+  };
 
   const getFileIcon = (fileName: string) => {
     const extension = fileName.split('.').pop()?.toLowerCase();
