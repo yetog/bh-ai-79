@@ -6,8 +6,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-const IONOS_API_KEY = Deno.env.get('IONOS_API_KEY')
-const IONOS_CHAT_URL = 'https://openai.inference.de-txl.ionos.com/v1/chat/completions'
+import { IONOS_CONFIG, IONOS_HEADERS } from '../_shared/ionos-config.ts'
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -122,14 +121,11 @@ ${JSON.stringify(contentSummary, null, 2)}
 
 Please provide a comprehensive analysis focusing on patterns, themes, and actionable insights. Be specific about what you observed and provide concrete recommendations for the user.`
 
-    const aiResponse = await fetch(IONOS_CHAT_URL, {
+    const aiResponse = await fetch(IONOS_CONFIG.CHAT_COMPLETION_URL, {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${IONOS_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
+      headers: IONOS_HEADERS,
       body: JSON.stringify({
-        model: 'meta-llama/llama-3.1-8b-instruct',
+        model: IONOS_CONFIG.CHAT_MODEL,
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt }

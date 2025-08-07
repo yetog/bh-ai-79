@@ -6,8 +6,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-const IONOS_API_KEY = Deno.env.get('IONOS_API_KEY')
-const IONOS_EMBEDDINGS_URL = 'https://openai.inference.de-txl.ionos.com/v1/embeddings'
+import { IONOS_CONFIG, IONOS_HEADERS } from '../_shared/ionos-config.ts'
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -38,15 +37,12 @@ serve(async (req) => {
     }
 
     // Generate embedding for the search query
-    const embeddingResponse = await fetch(IONOS_EMBEDDINGS_URL, {
+    const embeddingResponse = await fetch(IONOS_CONFIG.EMBEDDINGS_URL, {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${IONOS_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
+      headers: IONOS_HEADERS,
       body: JSON.stringify({
         input: query,
-        model: 'text-embedding-ada-002'
+        model: IONOS_CONFIG.EMBEDDING_MODEL
       }),
     })
 
