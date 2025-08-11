@@ -9,25 +9,48 @@ import SearchInterface from '@/components/ui/search-interface';
 import InsightsDashboard from '@/components/ui/insights-dashboard';
 import blackHoleHero from '@/assets/black-hole-hero.jpg';
 import { cn } from '@/lib/utils';
-import { ingestFile } from '@/lib/api';
+import { ingestFile, health } from '@/lib/api';
 import { toast } from '@/hooks/use-toast';
-
+import SettingsDialog from '@/components/SettingsDialog';
 const Index = () => {
   const [activeTab, setActiveTab] = useState('upload');
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
+  const [showSettings, setShowSettings] = useState(false);
+  const [connStatus, setConnStatus] = useState<'unknown' | 'ok' | 'error'>('unknown');
 
-const handleFilesSelected = async (files: File[]) => {
-  setUploadedFiles(prev => [...prev, ...files]);
-  for (const file of files) {
+  const checkHealth = async () => {
     try {
-      const res = await ingestFile(file);
-      toast({ title: 'Ingested', description: `${file.name} → ${res.chunksInserted} chunks` });
-    } catch (e: any) {
-      console.error(e);
-      toast({ title: 'Ingest failed', description: `${file.name}: ${e?.message || 'Unexpected error'}` });
+      await health();
+      setConnStatus('ok');
+    } catch {
+      setConnStatus('error');
     }
-  }
-};
+  };
+
+  React.useEffect(() => {
+    checkHealth();
+  }, []);
+
+  const handleFilesSelected = async (files: File[]) => {
+    setUploadedFiles(prev => [...prev, ...files]);
+    for (const file of files) {
+      try {
+        const res = await ingestFile(file);
+        toast({ title: 'Ingested', description: `${file.name} → ${res.chunksInserted} chunks` });
+      } catch (e: any) {
+        console.error(e);
+        const msg = String(e?.message || 'Unexpected error');
+        if (/401|Unauthorized|Forbidden/i.test(msg)) {
+          toast({ title: 'Unauthorized', description: 'Please set your API Key in Settings' });
+          setShowSettings(true);
+        } else {
+          toast({ title: 'Ingest failed', description: `${file.name}: ${msg}` });
+        }
+      }
+    }
+    checkHealth();
+  };
+
 
   const features = [
     {
@@ -189,6 +212,17 @@ const handleFilesSelected = async (files: File[]) => {
 
       {/* Main Interface */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+        {/* Connectivity Banner + Settings */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-6">
+          <div className="text-sm">
+            {connStatus === 'ok' && <span className="text-foreground">Connected to API</span>}
+            {connStatus === 'error' && <span className="text-destructive">Cannot reach backend. Check settings.</span>}
+            {connStatus === 'unknown' && <span className="text-muted-foreground">Checking connectivity...</span>}
+          </div>
+          <Button variant="outline" size="sm" onClick={() => setShowSettings(true)}>
+            Settings
+          </Button>
+        </div>
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8">
           <TabsList className="grid w-full grid-cols-3 bg-muted/50 p-1">
             <TabsTrigger value="upload" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
@@ -265,6 +299,12 @@ const handleFilesSelected = async (files: File[]) => {
           </TabsContent>
         </Tabs>
       </div>
+
+      <SettingsDialog
+        open={showSettings}
+        onOpenChange={(o) => { setShowSettings(o); if (!o) checkHealth(); }}
+        onSaved={() => { checkHealth(); }}
+      />
 
       {/* Footer */}
       <footer className="border-t border-border bg-muted/20 mt-20">

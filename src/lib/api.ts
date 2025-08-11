@@ -65,3 +65,16 @@ export async function queryRag(query: string, topK = 5): Promise<RagResponse> {
 
   return res.json();
 }
+
+// Simple health check to verify connectivity and auth
+export async function health(): Promise<{ ok: boolean }> {
+  const res = await fetch(`${getApiBaseUrl()}/health`, {
+    method: "GET",
+    headers: { ...getHeaders() },
+  });
+  if (!res.ok) {
+    const msg = await res.text().catch(() => res.statusText);
+    throw new Error(msg || `Health check failed with ${res.status}`);
+  }
+  return res.json();
+}

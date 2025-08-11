@@ -33,7 +33,11 @@ const handleSearch = async () => {
     setCitations(res.citations || []);
   } catch (e: any) {
     console.error(e);
-    toast({ title: 'Search failed', description: e?.message || 'Unexpected error' });
+    const msg = String(e?.message || "Unexpected error");
+    const hint = /401|Unauthorized|Forbidden/i.test(msg)
+      ? "Check API Key in Settings"
+      : "See console for details";
+    toast({ title: 'Search failed', description: `${msg}. ${hint}` });
   } finally {
     setIsSearching(false);
   }
