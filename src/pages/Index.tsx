@@ -9,14 +9,25 @@ import SearchInterface from '@/components/ui/search-interface';
 import InsightsDashboard from '@/components/ui/insights-dashboard';
 import blackHoleHero from '@/assets/black-hole-hero.jpg';
 import { cn } from '@/lib/utils';
+import { ingestFile } from '@/lib/api';
+import { toast } from '@/hooks/use-toast';
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState('upload');
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
 
-  const handleFilesSelected = (files: File[]) => {
-    setUploadedFiles(prev => [...prev, ...files]);
-  };
+const handleFilesSelected = async (files: File[]) => {
+  setUploadedFiles(prev => [...prev, ...files]);
+  for (const file of files) {
+    try {
+      const res = await ingestFile(file);
+      toast({ title: 'Ingested', description: `${file.name} → ${res.chunksInserted} chunks` });
+    } catch (e: any) {
+      console.error(e);
+      toast({ title: 'Ingest failed', description: `${file.name}: ${e?.message || 'Unexpected error'}` });
+    }
+  }
+};
 
   const features = [
     {

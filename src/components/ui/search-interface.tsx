@@ -6,84 +6,40 @@ import { Badge } from './badge';
 import { Card, CardContent } from './card';
 import { cn } from '@/lib/utils';
 
-interface SearchResult {
-  id: string;
-  title: string;
-  excerpt: string;
-  type: 'chat' | 'note' | 'document' | 'image';
-  timestamp: string;
-  relevance: number;
-  tags: string[];
-}
+import { queryRag, RagCitation } from '@/lib/api';
+import { toast } from '@/hooks/use-toast';
 
 interface SearchInterfaceProps {
   className?: string;
 }
 
-const mockResults: SearchResult[] = [
-  {
-    id: '1',
-    title: 'Project Planning Discussion',
-    excerpt: 'We discussed the timeline for the new feature and decided to prioritize user experience over quick delivery...',
-    type: 'chat',
-    timestamp: '2024-01-15T10:30:00Z',
-    relevance: 0.95,
-    tags: ['planning', 'timeline', 'ux']
-  },
-  {
-    id: '2',
-    title: 'AI Research Notes',
-    excerpt: 'Key insights about transformer architectures and their applications in personal knowledge management systems...',
-    type: 'note',
-    timestamp: '2024-01-14T14:20:00Z',
-    relevance: 0.88,
-    tags: ['ai', 'research', 'transformers']
-  },
-  {
-    id: '3',
-    title: 'Technical Specification Document',
-    excerpt: 'Detailed requirements for the semantic search implementation using vector embeddings and similarity matching...',
-    type: 'document',
-    timestamp: '2024-01-13T09:15:00Z',
-    relevance: 0.82,
-    tags: ['technical', 'specification', 'search']
-  }
-];
+// Results are fetched from backend; no mock data needed
 
 const SearchInterface: React.FC<SearchInterfaceProps> = ({ className }) => {
-  const [query, setQuery] = useState('');
-  const [isSearching, setIsSearching] = useState(false);
-  const [results, setResults] = useState<SearchResult[]>([]);
-  const [showFilters, setShowFilters] = useState(false);
+const [query, setQuery] = useState('');
+const [isSearching, setIsSearching] = useState(false);
+const [answer, setAnswer] = useState<string>('');
+const [citations, setCitations] = useState<RagCitation[]>([]);
+const [showFilters, setShowFilters] = useState(false);
 
-  const handleSearch = async () => {
-    if (!query.trim()) return;
-    
+const handleSearch = async () => {
+  if (!query.trim()) return;
+  try {
     setIsSearching(true);
-    // Simulate API call
-    setTimeout(() => {
-      setResults(mockResults.filter(result => 
-        result.title.toLowerCase().includes(query.toLowerCase()) ||
-        result.excerpt.toLowerCase().includes(query.toLowerCase())
-      ));
-      setIsSearching(false);
-    }, 800);
-  };
+    setAnswer('');
+    setCitations([]);
+    const res = await queryRag(query, 5);
+    setAnswer(res.answer);
+    setCitations(res.citations || []);
+  } catch (e: any) {
+    console.error(e);
+    toast({ title: 'Search failed', description: e?.message || 'Unexpected error' });
+  } finally {
+    setIsSearching(false);
+  }
+};
 
-  const getTypeIcon = (type: SearchResult['type']) => {
-    switch (type) {
-      case 'chat':
-        return <div className="w-2 h-2 rounded-full bg-accent" />;
-      case 'note':
-        return <div className="w-2 h-2 rounded-full bg-primary" />;
-      case 'document':
-        return <div className="w-2 h-2 rounded-full bg-secondary" />;
-      case 'image':
-        return <div className="w-2 h-2 rounded-full bg-destructive" />;
-      default:
-        return <div className="w-2 h-2 rounded-full bg-muted" />;
-    }
-  };
+// (type icons removed for MVP RAG UI)
 
   const formatTimestamp = (timestamp: string) => {
     const date = new Date(timestamp);
@@ -115,7 +71,7 @@ const SearchInterface: React.FC<SearchInterfaceProps> = ({ className }) => {
                 placeholder="Ask anything about your knowledge..."
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
                 className="pl-10 h-12 bg-muted/50 border-border hover:border-primary/50 focus:border-primary"
               />
             </div>
@@ -167,84 +123,57 @@ const SearchInterface: React.FC<SearchInterfaceProps> = ({ className }) => {
         </div>
       </div>
 
-      {/* Search Results */}
-      {results.length > 0 && (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-foreground">
-              Found {results.length} results
-            </h3>
-            <div className="text-sm text-muted-foreground">
-              Sorted by relevance
-            </div>
-          </div>
-          
-          <div className="space-y-3">
-            {results.map((result) => (
-              <Card
-                key={result.id}
-                className="p-4 hover:bg-card/80 cosmic-transition cursor-pointer group hover:cosmic-glow"
-              >
-                <div className="space-y-3">
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center space-x-3">
-                      {getTypeIcon(result.type)}
-                      <div>
-                        <h4 className="font-medium text-foreground group-hover:text-primary cosmic-transition">
-                          {result.title}
-                        </h4>
-                        <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-                          <span className="capitalize">{result.type}</span>
-                          <span>•</span>
-                          <span>{formatTimestamp(result.timestamp)}</span>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <div className="text-sm text-muted-foreground">
-                        {Math.round(result.relevance * 100)}% match
-                      </div>
-                      <div className={cn(
-                        "w-2 h-8 rounded-full",
-                        result.relevance > 0.9 ? "bg-accent" :
-                        result.relevance > 0.8 ? "bg-primary" :
-                        "bg-secondary"
-                      )} />
-                    </div>
-                  </div>
-                  
-                  <p className="text-muted-foreground leading-relaxed">
-                    {result.excerpt}
-                  </p>
-                  
-                  <div className="flex flex-wrap gap-2">
-                    {result.tags.map((tag) => (
-                      <Badge
-                        key={tag}
-                        variant="secondary"
-                        className="text-xs bg-muted/50 hover:bg-primary/20 cosmic-transition"
-                      >
-                        {tag}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-              </Card>
-            ))}
-          </div>
-        </div>
-      )}
+{/* Answer and Citations */}
+{(answer || citations.length > 0) && (
+  <div className="space-y-6">
+    {answer && (
+      <Card className="p-6 bg-gradient-void border-border cosmic-glow">
+        <CardContent className="space-y-2">
+          <div className="text-sm text-muted-foreground">Answer</div>
+          <div className="text-foreground leading-relaxed whitespace-pre-wrap">{answer}</div>
+        </CardContent>
+      </Card>
+    )}
 
-      {/* Empty State */}
-      {query && results.length === 0 && !isSearching && (
-        <div className="text-center py-12">
-          <Search className="w-16 h-16 text-muted-foreground mx-auto mb-4 opacity-50" />
-          <h3 className="text-lg font-medium text-foreground mb-2">No results found</h3>
-          <p className="text-muted-foreground">
-            Try different keywords or upload more content to expand your knowledge base.
-          </p>
+    {citations.length > 0 && (
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-semibold text-foreground">
+            Citations ({citations.length})
+          </h3>
+          <div className="text-sm text-muted-foreground">Most relevant first</div>
         </div>
-      )}
+        {citations.map((c, idx) => (
+          <Card key={`${c.documentId}-${c.chunk_index}-${idx}`} className="p-4 hover:bg-card/80 cosmic-transition">
+            <CardContent className="space-y-2 p-0">
+              <div className="flex items-center justify-between">
+                <div className="font-medium text-foreground">{c.title || 'Untitled'}</div>
+                <div className="text-xs text-muted-foreground">{Math.round((1 - c.score) * 100)}% match</div>
+              </div>
+              <div className="text-sm text-muted-foreground">
+                <a href={c.source_uri} target="_blank" rel="noreferrer" className="underline hover:text-primary">{c.source_uri}</a>
+                {c.timestamp ? <span className="ml-2">• {formatTimestamp(c.timestamp)}</span> : null}
+                <span className="ml-2">• Chunk #{c.chunk_index}</span>
+              </div>
+              <p className="text-foreground/80 leading-relaxed">{c.content}</p>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    )}
+  </div>
+)}
+
+{/* Empty State */}
+{query && !answer && citations.length === 0 && !isSearching && (
+  <div className="text-center py-12">
+    <Search className="w-16 h-16 text-muted-foreground mx-auto mb-4 opacity-50" />
+    <h3 className="text-lg font-medium text-foreground mb-2">No results found</h3>
+    <p className="text-muted-foreground">
+      Try different keywords or upload more content to expand your knowledge base.
+    </p>
+  </div>
+)}
     </div>
   );
 };
