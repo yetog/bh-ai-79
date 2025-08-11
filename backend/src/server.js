@@ -1,9 +1,11 @@
 import 'dotenv/config';
 import Fastify from 'fastify';
+import cors from '@fastify/cors';
 import multipart from '@fastify/multipart';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 import pkg from 'pg';
 const { Pool } = pkg;
+import { RecursiveCharacterTextSplitter } from 'langchain/text_splitter';
 
 // Config
 const PORT = Number(process.env.PORT || 8000);
@@ -38,6 +40,7 @@ const s3 = new S3Client({
 
 const app = Fastify({ logger: true });
 await app.register(multipart);
+await app.register(cors, { origin: true });
 
 // Simple API key guard
 app.addHook('preHandler', async (req, reply) => {
@@ -48,7 +51,7 @@ app.addHook('preHandler', async (req, reply) => {
   }
 });
 
-// Simple chunker (token-agnostic)
+// Simple chunker (fallback)
 function chunkText(text, chunkSize = 1200, overlap = 200) {
   const chunks = [];
   let i = 0;
@@ -61,6 +64,13 @@ function chunkText(text, chunkSize = 1200, overlap = 200) {
     if (i < 0) i = 0;
   }
   return chunks;
+}
+
+// LangChain splitter (preferred)
+async function splitTextLC(text) {
+  const splitter = new RecursiveCharacterTextSplitter({ chunkSize: 1200, chunkOverlap: 200 });
+  const docs = await splitter.createDocuments([text]);
+  return docs.map(d => d.pageContent);
 }
 
 async function embed(text) {
@@ -138,7 +148,7 @@ app.post('/api/ingest', async (req, reply) => {
     return reply.send({ documentId, chunksInserted: 0 });
   }
 
-  const chunks = chunkText(text);
+  const chunks = await splitTextLC(text);
   let idx = 0;
   for (const chunk of chunks) {
     const embedding = await embed(chunk);
