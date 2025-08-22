@@ -5,7 +5,9 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import FileUpload from '@/components/ui/file-upload';
-import SearchInterface from '@/components/ui/search-interface';
+import { AdvancedSearch } from '@/components/search/AdvancedSearch';
+import { RealTimeUpdates } from '@/components/analytics/RealTimeUpdates';
+import { StatsCards } from '@/components/analytics/StatsCards';
 import InsightsDashboard from '@/components/ui/insights-dashboard';
 import { ErrorBoundary } from '@/components/ui/error-boundary';
 import { NoFilesUploaded, ProcessingFiles } from '@/components/ui/empty-states';
@@ -122,13 +124,6 @@ const Index = () => {
     }
   ];
 
-  const stats = [
-    { label: "Knowledge Items", value: "2,847", icon: <Brain className="w-4 h-4" /> },
-    { label: "Insights Generated", value: "156", icon: <Lightbulb className="w-4 h-4" /> },
-    { label: "Patterns Found", value: "89", icon: <Star className="w-4 h-4" /> },
-    { label: "Connections Made", value: "1,243", icon: <Users className="w-4 h-4" /> }
-  ];
-
   return (
     <div className="min-h-screen bg-gradient-cosmic">
       {/* Hero Section */}
@@ -202,21 +197,9 @@ const Index = () => {
         </div>
       </div>
 
-      {/* Stats Section */}
+      {/* Stats Section - Dynamic */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-          {stats.map((stat, index) => (
-            <Card key={index} className="text-center p-6 bg-gradient-void border-border hover:cosmic-glow cosmic-transition">
-              <CardContent className="space-y-2">
-                <div className="flex justify-center text-primary">
-                  {stat.icon}
-                </div>
-                <div className="text-2xl font-bold text-foreground">{stat.value}</div>
-                <div className="text-sm text-muted-foreground">{stat.label}</div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+        <StatsCards />
       </div>
 
       {/* Features Grid */}
@@ -341,9 +324,16 @@ const Index = () => {
                 across all your uploaded knowledge.
               </p>
             </div>
-            <ErrorBoundary>
-              <SearchInterface />
-            </ErrorBoundary>
+            <div className="grid gap-6 lg:grid-cols-4">
+              <div className="lg:col-span-3">
+                <ErrorBoundary>
+                  <AdvancedSearch />
+                </ErrorBoundary>
+              </div>
+              <div className="lg:col-span-1">
+                <RealTimeUpdates />
+              </div>
+            </div>
           </TabsContent>
 
           <TabsContent value="insights">

@@ -28,7 +28,7 @@ export interface RagResponse {
 export const getApiBaseUrl = () =>
   localStorage.getItem("BLACKHOLE_API_BASE_URL") || "http://localhost:8000";
 
-const getHeaders = () => {
+export const getHeaders = () => {
   const headers: Record<string, string> = {};
   const apiKey = localStorage.getItem("BLACKHOLE_API_KEY");
   if (apiKey) headers["X-API-Key"] = apiKey;
@@ -164,6 +164,33 @@ export async function getFileDetails(fileId: string): Promise<any> {
   if (!res.ok) {
     const msg = await res.text().catch(() => res.statusText);
     throw new Error(msg || `Get file details failed with ${res.status}`);
+  }
+
+  return res.json();
+}
+
+// Analytics and stats
+export async function getSystemStats(): Promise<any> {
+  const res = await fetch(`${getApiBaseUrl()}/api/stats`, {
+    headers: getHeaders(),
+  });
+
+  if (!res.ok) {
+    const msg = await res.text().catch(() => res.statusText);
+    throw new Error(msg || `Get stats failed with ${res.status}`);
+  }
+
+  return res.json();
+}
+
+export async function getProcessingMetrics(): Promise<any> {
+  const res = await fetch(`${getApiBaseUrl()}/api/metrics/processing`, {
+    headers: getHeaders(),
+  });
+
+  if (!res.ok) {
+    const msg = await res.text().catch(() => res.statusText);
+    throw new Error(msg || `Get metrics failed with ${res.status}`);
   }
 
   return res.json();
