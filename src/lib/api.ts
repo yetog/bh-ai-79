@@ -1,6 +1,8 @@
 // Simple API client for the Black Hole AI backend
 // Reads base URL and optional API key from localStorage to avoid bundling secrets
 
+import { Dataset, DatasetManifest } from '@/types/dataset';
+
 export type UUID = string;
 
 export interface IngestResponse {
@@ -61,6 +63,107 @@ export async function queryRag(query: string, topK = 5): Promise<RagResponse> {
   if (!res.ok) {
     const msg = await res.text().catch(() => res.statusText);
     throw new Error(msg || `Query failed with ${res.status}`);
+  }
+
+  return res.json();
+}
+
+// Dataset management
+export async function getDatasets(params?: { status?: string; query?: string }): Promise<Dataset[]> {
+  const searchParams = new URLSearchParams();
+  if (params?.status) searchParams.set('status', params.status);
+  if (params?.query) searchParams.set('query', params.query);
+
+  const res = await fetch(`${getApiBaseUrl()}/api/datasets?${searchParams}`, {
+    headers: getHeaders(),
+  });
+
+  if (!res.ok) {
+    const msg = await res.text().catch(() => res.statusText);
+    throw new Error(msg || `Get datasets failed with ${res.status}`);
+  }
+
+  return res.json();
+}
+
+export async function createDataset(manifest: any): Promise<Dataset> {
+  const res = await fetch(`${getApiBaseUrl()}/api/datasets`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...getHeaders() },
+    body: JSON.stringify(manifest),
+  });
+
+  if (!res.ok) {
+    const msg = await res.text().catch(() => res.statusText);
+    throw new Error(msg || `Create dataset failed with ${res.status}`);
+  }
+
+  return res.json();
+}
+
+export async function updateDataset(datasetId: string, manifest: any): Promise<Dataset> {
+  const res = await fetch(`${getApiBaseUrl()}/api/datasets/${datasetId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...getHeaders() },
+    body: JSON.stringify(manifest),
+  });
+
+  if (!res.ok) {
+    const msg = await res.text().catch(() => res.statusText);
+    throw new Error(msg || `Update dataset failed with ${res.status}`);
+  }
+
+  return res.json();
+}
+
+export async function deleteDataset(datasetId: string): Promise<void> {
+  const res = await fetch(`${getApiBaseUrl()}/api/datasets/${datasetId}`, {
+    method: "DELETE",
+    headers: getHeaders(),
+  });
+
+  if (!res.ok) {
+    const msg = await res.text().catch(() => res.statusText);
+    throw new Error(msg || `Delete dataset failed with ${res.status}`);
+  }
+}
+
+export async function cloneDataset(datasetId: string): Promise<Dataset> {
+  const res = await fetch(`${getApiBaseUrl()}/api/datasets/${datasetId}/clone`, {
+    method: "POST",
+    headers: getHeaders(),
+  });
+
+  if (!res.ok) {
+    const msg = await res.text().catch(() => res.statusText);
+    throw new Error(msg || `Clone dataset failed with ${res.status}`);
+  }
+
+  return res.json();
+}
+
+// Processing management
+export async function reindexDataset(datasetId: string, mode?: 'full' | 'delta'): Promise<void> {
+  const res = await fetch(`${getApiBaseUrl()}/api/datasets/${datasetId}/reindex`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...getHeaders() },
+    body: JSON.stringify({ mode: mode || 'full' }),
+  });
+
+  if (!res.ok) {
+    const msg = await res.text().catch(() => res.statusText);
+    throw new Error(msg || `Reindex failed with ${res.status}`);
+  }
+}
+
+export async function getFileDetails(fileId: string): Promise<any> {
+  const res = await fetch(`${getApiBaseUrl()}/api/files/${fileId}`, {
+    headers: getHeaders(),
+  });
+
+  if (!res.ok) {
+    const msg = await res.text().catch(() => res.statusText);
+    throw new Error(msg || `Get file details failed with ${res.status}`);
   }
 
   return res.json();

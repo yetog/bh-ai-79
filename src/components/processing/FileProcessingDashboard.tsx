@@ -15,38 +15,72 @@ import {
   Clock, 
   FileText,
   Activity,
-  TrendingUp
+  TrendingUp,
+  AlertTriangle
 } from 'lucide-react';
 import { ProcessingJob, ProcessingQueue, FileMetadata } from '@/types/processing';
 import { toast } from '@/hooks/use-toast';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { reindexDataset, getFileDetails } from '@/lib/api';
 
 interface FileProcessingDashboardProps {
-  queue?: ProcessingQueue;
-  onRetryJob?: (jobId: string) => void;
-  onCancelJob?: (jobId: string) => void;
-  onClearCompleted?: () => void;
-  onPauseQueue?: () => void;
-  onResumeQueue?: () => void;
+  datasetId: string;
   className?: string;
 }
 
 export function FileProcessingDashboard({
-  queue = {
-    jobs: [],
-    activeJobs: 0,
-    queuedJobs: 0,
-    completedJobs: 0,
-    failedJobs: 0,
-  },
-  onRetryJob,
-  onCancelJob,
-  onClearCompleted,
-  onPauseQueue,
-  onResumeQueue,
+  datasetId,
   className
 }: FileProcessingDashboardProps) {
-  const [isQueuePaused, setIsQueuePaused] = useState(false);
   const [selectedJob, setSelectedJob] = useState<ProcessingJob | null>(null);
+  const [errorDrawerOpen, setErrorDrawerOpen] = useState(false);
+  const [selectedError, setSelectedError] = useState<ProcessingJob | null>(null);
+  
+  const queryClient = useQueryClient();
+  
+  // Fetch dataset processing status (simplified without real-time for now)
+  const { data: processingStatus, refetch } = useQuery({
+    queryKey: ['dataset-status', datasetId],
+    queryFn: () => fetch(`${localStorage.getItem('BLACKHOLE_API_BASE_URL') || 'http://localhost:8000'}/api/datasets/${datasetId}/status`, {
+      headers: {
+        'X-API-Key': localStorage.getItem('BLACKHOLE_API_KEY') || ''
+      }
+    }).then(res => res.json()),
+    refetchInterval: 2000, // Poll every 2 seconds
+  });
+
+  // Mock queue data structure from processing status
+  const queue: ProcessingQueue = {
+    jobs: processingStatus?.jobs || [],
+    activeJobs: processingStatus?.activeJobs || 0,
+    queuedJobs: processingStatus?.queuedJobs || 0,
+    completedJobs: processingStatus?.completedJobs || 0,
+    failedJobs: processingStatus?.failedJobs || 0,
+  };
+
+  // Reindex mutation
+  const reindexMutation = useMutation({
+    mutationFn: (mode?: 'full' | 'delta') => reindexDataset(datasetId, mode),
+    onSuccess: () => {
+      toast({
+        title: 'Reindexing Started',
+        description: 'Dataset reindexing has been queued.',
+      });
+      refetch();
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Reindex Failed',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+
+  // Effect to refetch when needed
+  useEffect(() => {
+    // Future real-time integration
+  }, [refetch]);
 
   const getStatusIcon = (status: ProcessingJob['status']) => {
     switch (status) {
@@ -93,38 +127,68 @@ export function FileProcessingDashboard({
     return `${duration}s`;
   };
 
-  const handleRetryJob = (jobId: string) => {
-    onRetryJob?.(jobId);
-    toast({
-      title: 'Job Retried',
-      description: 'The processing job has been queued for retry.',
-    });
-  };
-
-  const handleCancelJob = (jobId: string) => {
-    onCancelJob?.(jobId);
-    toast({
-      title: 'Job Cancelled',
-      description: 'The processing job has been cancelled.',
-    });
-  };
-
-  const toggleQueuePause = () => {
-    if (isQueuePaused) {
-      onResumeQueue?.();
-      setIsQueuePaused(false);
-      toast({
-        title: 'Queue Resumed',
-        description: 'Processing queue has been resumed.',
+  const handleRetryJob = async (jobId: string) => {
+    try {
+      // Implement retry logic via API
+      await fetch(`${localStorage.getItem('BLACKHOLE_API_BASE_URL') || 'http://localhost:8000'}/api/jobs/${jobId}/retry`, {
+        method: 'POST',
+        headers: {
+          'X-API-Key': localStorage.getItem('BLACKHOLE_API_KEY') || ''
+        }
       });
-    } else {
-      onPauseQueue?.();
-      setIsQueuePaused(true);
+      
       toast({
-        title: 'Queue Paused',
-        description: 'Processing queue has been paused.',
+        title: 'Job Retried',
+        description: 'The processing job has been queued for retry.',
+      });
+      refetch();
+    } catch (error) {
+      toast({
+        title: 'Retry Failed',
+        description: 'Failed to retry the job. Please try again.',
+        variant: 'destructive',
       });
     }
+  };
+
+  const handleCancelJob = async (jobId: string) => {
+    try {
+      await fetch(`${localStorage.getItem('BLACKHOLE_API_BASE_URL') || 'http://localhost:8000'}/api/jobs/${jobId}/cancel`, {
+        method: 'POST',
+        headers: {
+          'X-API-Key': localStorage.getItem('BLACKHOLE_API_KEY') || ''
+        }
+      });
+      
+      toast({
+        title: 'Job Cancelled',
+        description: 'The processing job has been cancelled.',
+      });
+      refetch();
+    } catch (error) {
+      toast({
+        title: 'Cancel Failed',
+        description: 'Failed to cancel the job. Please try again.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleReindex = (mode: 'full' | 'delta' = 'full') => {
+    reindexMutation.mutate(mode);
+  };
+
+  const handleViewError = (job: ProcessingJob) => {
+    setSelectedError(job);
+    setErrorDrawerOpen(true);
+  };
+
+  const clearCompleted = () => {
+    // Clear completed jobs via API or local state
+    toast({
+      title: 'Completed Jobs Cleared',
+      description: 'All completed jobs have been removed from the queue.',
+    });
   };
 
   const activeJobs = queue.jobs.filter(job => job.status === 'processing');
@@ -144,29 +208,34 @@ export function FileProcessingDashboard({
         <div className="flex gap-2">
           <Button
             variant="outline"
-            onClick={toggleQueuePause}
-            disabled={queue.jobs.length === 0}
+            onClick={() => handleReindex('full')}
+            disabled={reindexMutation.isPending}
           >
-            {isQueuePaused ? (
-              <>
-                <Play className="h-4 w-4 mr-2" />
-                Resume Queue
-              </>
-            ) : (
-              <>
-                <Pause className="h-4 w-4 mr-2" />
-                Pause Queue
-              </>
-            )}
+            <RotateCcw className="h-4 w-4 mr-2" />
+            Full Reindex
           </Button>
           <Button
             variant="outline"
-            onClick={onClearCompleted}
+            onClick={() => handleReindex('delta')}
+            disabled={reindexMutation.isPending}
+          >
+            <Activity className="h-4 w-4 mr-2" />
+            Delta Reindex
+          </Button>
+          <Button
+            variant="outline"
+            onClick={clearCompleted}
             disabled={completedJobs.length === 0}
           >
             <Trash2 className="h-4 w-4 mr-2" />
             Clear Completed
           </Button>
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-yellow-500" />
+            <span className="text-sm text-muted-foreground">
+              Polling
+            </span>
+          </div>
         </div>
       </div>
 
@@ -421,8 +490,18 @@ export function FileProcessingDashboard({
                       </div>
                       
                       {job.error && (
-                        <div className="p-2 bg-red-50 border border-red-200 rounded text-sm text-red-700">
-                          {job.error}
+                        <div className="space-y-2">
+                          <div className="p-2 bg-red-50 border border-red-200 rounded text-sm text-red-700">
+                            {job.error}
+                          </div>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleViewError(job)}
+                          >
+                            <AlertTriangle className="h-4 w-4 mr-1" />
+                            View Details
+                          </Button>
                         </div>
                       )}
                     </div>

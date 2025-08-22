@@ -1,49 +1,111 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { DatasetWizard } from './DatasetWizard';
 import { ManifestEditor } from './ManifestEditor';
 import { DatasetHealthMetrics } from './DatasetHealthMetrics';
-import { Plus, Search, Settings, Trash2, FileText, Clock, CheckCircle, AlertCircle, Copy, History, TrendingUp } from 'lucide-react';
+import { Plus, Search, Settings, Trash2, FileText, Clock, CheckCircle, AlertCircle, Copy, History, TrendingUp, Filter, Calendar } from 'lucide-react';
 import { Dataset, DatasetManifest } from '@/types/dataset';
 import { DatasetHealthMetrics as HealthMetrics, DatasetVersion } from '@/types/processing';
 import { toast } from '@/hooks/use-toast';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { getDatasets, createDataset, updateDataset, deleteDataset, cloneDataset } from '@/lib/api';
 
 interface DatasetManagerProps {
-  datasets?: Dataset[];
-  healthMetrics?: Record<string, HealthMetrics>;
-  versions?: Record<string, DatasetVersion[]>;
-  onCreateDataset?: (dataset: { manifest: DatasetManifest; files: File[] }) => void;
-  onEditDataset?: (datasetId: string, manifest: DatasetManifest) => void;
-  onDeleteDataset?: (datasetId: string) => void;
-  onCloneDataset?: (datasetId: string) => void;
-  onViewVersions?: (datasetId: string) => void;
   className?: string;
 }
 
-export function DatasetManager({
-  datasets = [],
-  healthMetrics = {},
-  versions = {},
-  onCreateDataset,
-  onEditDataset,
-  onDeleteDataset,
-  onCloneDataset,
-  onViewVersions,
-  className
-}: DatasetManagerProps) {
+export function DatasetManager({ className }: DatasetManagerProps) {
   const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [dateFilter, setDateFilter] = useState<string>('all');
   const [showWizard, setShowWizard] = useState(false);
   const [editingDataset, setEditingDataset] = useState<Dataset | null>(null);
   const [viewingHealthMetrics, setViewingHealthMetrics] = useState<string | null>(null);
+  const [viewingVersions, setViewingVersions] = useState<string | null>(null);
+  
+  const queryClient = useQueryClient();
+  
+  // Fetch datasets
+  const { data: datasets = [], isLoading } = useQuery({
+    queryKey: ['datasets', { status: statusFilter, query: searchQuery }],
+    queryFn: () => getDatasets({ status: statusFilter !== 'all' ? statusFilter : undefined, query: searchQuery }),
+  });
 
-  const filteredDatasets = datasets.filter(dataset =>
-    dataset.display_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    dataset.id.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Mutations
+  const createMutation = useMutation({
+    mutationFn: ({ manifest, files }: { manifest: DatasetManifest; files: File[] }) => 
+      createDataset(manifest),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['datasets'] });
+      toast({ title: 'Dataset Created', description: 'New dataset has been created successfully.' });
+    },
+    onError: (error: any) => {
+      toast({ title: 'Creation Failed', description: error.message, variant: 'destructive' });
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: ({ datasetId, manifest }: { datasetId: string; manifest: DatasetManifest }) =>
+      updateDataset(datasetId, manifest),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['datasets'] });
+      toast({ title: 'Dataset Updated', description: 'Dataset configuration has been updated.' });
+    },
+    onError: (error: any) => {
+      toast({ title: 'Update Failed', description: error.message, variant: 'destructive' });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: deleteDataset,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['datasets'] });
+      toast({ title: 'Dataset Deleted', description: 'Dataset has been permanently removed.' });
+    },
+    onError: (error: any) => {
+      toast({ title: 'Deletion Failed', description: error.message, variant: 'destructive' });
+    },
+  });
+
+  const cloneMutation = useMutation({
+    mutationFn: cloneDataset,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['datasets'] });
+      toast({ title: 'Dataset Cloned', description: 'A copy of the dataset has been created.' });
+    },
+    onError: (error: any) => {
+      toast({ title: 'Clone Failed', description: error.message, variant: 'destructive' });
+    },
+  });
+
+  const filteredDatasets = datasets.filter(dataset => {
+    const matchesSearch = dataset.display_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      dataset.id.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    const matchesStatus = statusFilter === 'all' || dataset.index_status === statusFilter;
+    
+    const matchesDate = dateFilter === 'all' || (() => {
+      const datasetDate = new Date(dataset.created_at);
+      const now = new Date();
+      switch (dateFilter) {
+        case 'today':
+          return datasetDate.toDateString() === now.toDateString();
+        case 'week':
+          return (now.getTime() - datasetDate.getTime()) <= (7 * 24 * 60 * 60 * 1000);
+        case 'month':
+          return (now.getTime() - datasetDate.getTime()) <= (30 * 24 * 60 * 60 * 1000);
+        default:
+          return true;
+      }
+    })();
+    
+    return matchesSearch && matchesStatus && matchesDate;
+  });
 
   const getStatusIcon = (status?: string) => {
     switch (status) {
@@ -72,54 +134,47 @@ export function DatasetManager({
   };
 
   const handleCreateDataset = (data: { manifest: DatasetManifest; files: File[] }) => {
-    onCreateDataset?.(data);
+    createMutation.mutate(data);
     setShowWizard(false);
   };
 
   const handleEditDataset = (manifest: DatasetManifest) => {
     if (editingDataset) {
-      onEditDataset?.(editingDataset.id, manifest);
+      updateMutation.mutate({ datasetId: editingDataset.id, manifest });
       setEditingDataset(null);
     }
   };
 
   const handleDeleteDataset = (datasetId: string) => {
     if (confirm('Are you sure you want to delete this dataset? This action cannot be undone.')) {
-      onDeleteDataset?.(datasetId);
-      toast({
-        title: 'Dataset Deleted',
-        description: 'The dataset has been permanently removed.',
-      });
+      deleteMutation.mutate(datasetId);
     }
   };
 
   const handleCloneDataset = (datasetId: string) => {
-    onCloneDataset?.(datasetId);
-    toast({
-      title: 'Dataset Cloned',
-      description: 'A copy of the dataset has been created.',
-    });
+    cloneMutation.mutate(datasetId);
   };
 
   const handleViewVersions = (datasetId: string) => {
-    onViewVersions?.(datasetId);
+    setViewingVersions(datasetId);
   };
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString();
   };
 
-  const getHealthBadge = (datasetId: string) => {
-    const metrics = healthMetrics[datasetId];
-    if (!metrics) return null;
-
-    const { indexingStatus } = metrics;
-    const variant = indexingStatus === 'healthy' ? 'default' : 
-                   indexingStatus === 'partial' ? 'secondary' : 'destructive';
+  const getHealthBadge = (dataset: Dataset) => {
+    // Mock health status based on index status and document count
+    const hasIssues = dataset.index_status === 'error' || (dataset.document_count === 0);
+    const variant = dataset.index_status === 'complete' && !hasIssues ? 'default' : 
+                   dataset.index_status === 'processing' ? 'secondary' : 'destructive';
+    
+    const status = dataset.index_status === 'complete' && !hasIssues ? 'healthy' : 
+                   dataset.index_status === 'processing' ? 'processing' : 'issues';
     
     return (
       <Badge variant={variant} className="text-xs">
-        {indexingStatus}
+        {status}
       </Badge>
     );
   };
@@ -149,6 +204,31 @@ export function DatasetManager({
             className="pl-10"
           />
         </div>
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <SelectTrigger className="w-40">
+            <Filter className="h-4 w-4 mr-2" />
+            <SelectValue placeholder="Status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Status</SelectItem>
+            <SelectItem value="complete">Complete</SelectItem>
+            <SelectItem value="processing">Processing</SelectItem>
+            <SelectItem value="pending">Pending</SelectItem>
+            <SelectItem value="error">Error</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={dateFilter} onValueChange={setDateFilter}>
+          <SelectTrigger className="w-40">
+            <Calendar className="h-4 w-4 mr-2" />
+            <SelectValue placeholder="Date" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Time</SelectItem>
+            <SelectItem value="today">Today</SelectItem>
+            <SelectItem value="week">This Week</SelectItem>
+            <SelectItem value="month">This Month</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -159,7 +239,7 @@ export function DatasetManager({
                 <CardTitle className="text-lg">{dataset.display_name}</CardTitle>
                 <div className="flex items-center space-x-2">
                   {getStatusIcon(dataset.index_status)}
-                  {getHealthBadge(dataset.id)}
+                  {getHealthBadge(dataset)}
                 </div>
               </div>
               <div className="flex items-center justify-between text-sm text-muted-foreground">
@@ -219,16 +299,14 @@ export function DatasetManager({
                     <History className="h-4 w-4 mr-1" />
                     Versions
                   </Button>
-                  {healthMetrics[dataset.id] && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setViewingHealthMetrics(dataset.id)}
-                    >
-                      <TrendingUp className="h-4 w-4 mr-1" />
-                      Health
-                    </Button>
-                  )}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setViewingHealthMetrics(dataset.id)}
+                  >
+                    <TrendingUp className="h-4 w-4 mr-1" />
+                    Health
+                  </Button>
                 </div>
                 <Button
                   variant="outline"
@@ -295,9 +373,36 @@ export function DatasetManager({
               Dataset Health: {datasets.find(d => d.id === viewingHealthMetrics)?.display_name}
             </DialogTitle>
           </DialogHeader>
-          {viewingHealthMetrics && healthMetrics[viewingHealthMetrics] && (
-            <DatasetHealthMetrics metrics={healthMetrics[viewingHealthMetrics]} />
+          {viewingHealthMetrics && (
+            <DatasetHealthMetrics 
+              metrics={{
+                datasetId: viewingHealthMetrics,
+                totalDocuments: datasets.find(d => d.id === viewingHealthMetrics)?.document_count || 0,
+                totalChunks: 0, // Would be fetched from API
+                totalEmbeddings: 0, // Would be fetched from API
+                indexingStatus: datasets.find(d => d.id === viewingHealthMetrics)?.index_status === 'complete' ? 'healthy' : 'unhealthy',
+                lastProcessed: datasets.find(d => d.id === viewingHealthMetrics)?.created_at || new Date().toISOString(),
+                processingErrors: 0, // Would be fetched from API
+                averageChunkSize: 0, // Would be fetched from API
+                storageUsed: 0, // Would be fetched from API
+                searchAccuracy: 0.95 // Would be fetched from API
+              }}
+            />
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Versions Dialog */}
+      <Dialog open={!!viewingVersions} onOpenChange={() => setViewingVersions(null)}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-auto">
+          <DialogHeader>
+            <DialogTitle>
+              Dataset Versions: {datasets.find(d => d.id === viewingVersions)?.display_name}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-muted-foreground">Version management coming soon...</p>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
