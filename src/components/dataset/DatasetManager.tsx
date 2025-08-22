@@ -6,28 +6,39 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { DatasetWizard } from './DatasetWizard';
 import { ManifestEditor } from './ManifestEditor';
-import { Plus, Search, Settings, Trash2, FileText, Clock, CheckCircle, AlertCircle } from 'lucide-react';
+import { DatasetHealthMetrics } from './DatasetHealthMetrics';
+import { Plus, Search, Settings, Trash2, FileText, Clock, CheckCircle, AlertCircle, Copy, History, TrendingUp } from 'lucide-react';
 import { Dataset, DatasetManifest } from '@/types/dataset';
+import { DatasetHealthMetrics as HealthMetrics, DatasetVersion } from '@/types/processing';
 import { toast } from '@/hooks/use-toast';
 
 interface DatasetManagerProps {
   datasets?: Dataset[];
+  healthMetrics?: Record<string, HealthMetrics>;
+  versions?: Record<string, DatasetVersion[]>;
   onCreateDataset?: (dataset: { manifest: DatasetManifest; files: File[] }) => void;
   onEditDataset?: (datasetId: string, manifest: DatasetManifest) => void;
   onDeleteDataset?: (datasetId: string) => void;
+  onCloneDataset?: (datasetId: string) => void;
+  onViewVersions?: (datasetId: string) => void;
   className?: string;
 }
 
 export function DatasetManager({
   datasets = [],
+  healthMetrics = {},
+  versions = {},
   onCreateDataset,
   onEditDataset,
   onDeleteDataset,
+  onCloneDataset,
+  onViewVersions,
   className
 }: DatasetManagerProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [showWizard, setShowWizard] = useState(false);
   const [editingDataset, setEditingDataset] = useState<Dataset | null>(null);
+  const [viewingHealthMetrics, setViewingHealthMetrics] = useState<string | null>(null);
 
   const filteredDatasets = datasets.filter(dataset =>
     dataset.display_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -82,6 +93,37 @@ export function DatasetManager({
     }
   };
 
+  const handleCloneDataset = (datasetId: string) => {
+    onCloneDataset?.(datasetId);
+    toast({
+      title: 'Dataset Cloned',
+      description: 'A copy of the dataset has been created.',
+    });
+  };
+
+  const handleViewVersions = (datasetId: string) => {
+    onViewVersions?.(datasetId);
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString();
+  };
+
+  const getHealthBadge = (datasetId: string) => {
+    const metrics = healthMetrics[datasetId];
+    if (!metrics) return null;
+
+    const { indexingStatus } = metrics;
+    const variant = indexingStatus === 'healthy' ? 'default' : 
+                   indexingStatus === 'partial' ? 'secondary' : 'destructive';
+    
+    return (
+      <Badge variant={variant} className="text-xs">
+        {indexingStatus}
+      </Badge>
+    );
+  };
+
   return (
     <div className={`space-y-6 ${className}`}>
       <div className="flex items-center justify-between">
@@ -115,8 +157,9 @@ export function DatasetManager({
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-lg">{dataset.display_name}</CardTitle>
-                <div className="flex items-center space-x-1">
+                <div className="flex items-center space-x-2">
                   {getStatusIcon(dataset.index_status)}
+                  {getHealthBadge(dataset.id)}
                 </div>
               </div>
               <div className="flex items-center justify-between text-sm text-muted-foreground">
@@ -151,14 +194,42 @@ export function DatasetManager({
               </div>
 
               <div className="flex justify-between">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setEditingDataset(dataset)}
-                >
-                  <Settings className="h-4 w-4 mr-1" />
-                  Configure
-                </Button>
+                <div className="flex space-x-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setEditingDataset(dataset)}
+                  >
+                    <Settings className="h-4 w-4 mr-1" />
+                    Configure
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleCloneDataset(dataset.id)}
+                  >
+                    <Copy className="h-4 w-4 mr-1" />
+                    Clone
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleViewVersions(dataset.id)}
+                  >
+                    <History className="h-4 w-4 mr-1" />
+                    Versions
+                  </Button>
+                  {healthMetrics[dataset.id] && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setViewingHealthMetrics(dataset.id)}
+                    >
+                      <TrendingUp className="h-4 w-4 mr-1" />
+                      Health
+                    </Button>
+                  )}
+                </div>
                 <Button
                   variant="outline"
                   size="sm"
@@ -212,6 +283,20 @@ export function DatasetManager({
               onSave={handleEditDataset}
               onClose={() => setEditingDataset(null)}
             />
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Health Metrics Dialog */}
+      <Dialog open={!!viewingHealthMetrics} onOpenChange={() => setViewingHealthMetrics(null)}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-auto">
+          <DialogHeader>
+            <DialogTitle>
+              Dataset Health: {datasets.find(d => d.id === viewingHealthMetrics)?.display_name}
+            </DialogTitle>
+          </DialogHeader>
+          {viewingHealthMetrics && healthMetrics[viewingHealthMetrics] && (
+            <DatasetHealthMetrics metrics={healthMetrics[viewingHealthMetrics]} />
           )}
         </DialogContent>
       </Dialog>
