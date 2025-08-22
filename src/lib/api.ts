@@ -196,6 +196,53 @@ export async function getProcessingMetrics(): Promise<any> {
   return res.json();
 }
 
+// Upload endpoints
+export const requestSignedUrl = async (filename: string, contentType: string, size: number) => {
+  const response = await fetch(`${getApiBaseUrl()}/uploads/sign`, {
+    method: 'POST',
+    headers: getHeaders(),
+    body: JSON.stringify({ filename, contentType, size }),
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to get signed URL');
+  }
+
+  return response.json();
+};
+
+export const notifyUploadComplete = async (data: {
+  key: string;
+  filename: string;
+  size: number;
+  mimetype: string;
+  checksum: string;
+}) => {
+  const response = await fetch(`${getApiBaseUrl()}/uploads/complete`, {
+    method: 'POST',
+    headers: getHeaders(),
+    body: JSON.stringify(data),
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to complete upload');
+  }
+
+  return response.json();
+};
+
+export const getProcessingStatus = async (jobId: string) => {
+  const response = await fetch(`${getApiBaseUrl()}/processing/${jobId}/status`, {
+    headers: getHeaders(),
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to get processing status');
+  }
+
+  return response.json();
+};
+
 // Simple health check to verify connectivity and auth
 export async function health(): Promise<{ ok: boolean }> {
   const res = await fetch(`${getApiBaseUrl()}/health`, {

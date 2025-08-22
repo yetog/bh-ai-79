@@ -54,46 +54,8 @@ const Index = () => {
     checkHealth();
   }, []);
 
-  const handleFilesSelected = async (files: File[]) => {
-    // Optimistic update - add files to processing immediately
-    setProcessingFiles(prev => [...prev, ...files]);
-    setUploadedFiles(prev => [...prev, ...files]);
-    
-    for (const file of files) {
-      try {
-        const res = await ingestFile(file);
-        toast({ 
-          title: 'Processing Complete', 
-          description: `${file.name} → ${res.chunksInserted} chunks indexed`
-        });
-        
-        // Remove from processing list
-        setProcessingFiles(prev => prev.filter(f => f !== file));
-      } catch (e: any) {
-        console.error(e);
-        const msg = String(e?.message || 'Unexpected error');
-        
-        // Remove from processing list on error
-        setProcessingFiles(prev => prev.filter(f => f !== file));
-        setUploadedFiles(prev => prev.filter(f => f !== file));
-        
-        if (/401|Unauthorized|Forbidden/i.test(msg)) {
-          toast({ 
-            title: 'Unauthorized', 
-            description: 'Please set your API Key in Settings',
-            variant: 'destructive'
-          });
-          setShowSettings(true);
-        } else {
-          toast({ 
-            title: 'Processing Failed', 
-            description: `${file.name}: ${msg}`,
-            variant: 'destructive'
-          });
-        }
-      }
-    }
-    checkHealth();
+  const handleFilesSelected = (files: File[]) => {
+    console.log('Files uploaded successfully:', files);
   };
 
 
