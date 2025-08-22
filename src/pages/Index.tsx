@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Brain, Search, Upload, Lightbulb, ArrowRight, Zap, Star, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -7,16 +7,37 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import FileUpload from '@/components/ui/file-upload';
 import SearchInterface from '@/components/ui/search-interface';
 import InsightsDashboard from '@/components/ui/insights-dashboard';
+import { ErrorBoundary } from '@/components/ui/error-boundary';
+import { NoFilesUploaded, ProcessingFiles } from '@/components/ui/empty-states';
 import blackHoleHero from '@/assets/black-hole-hero.jpg';
 import { cn } from '@/lib/utils';
 import { ingestFile, health } from '@/lib/api';
 import { toast } from '@/hooks/use-toast';
+import { useCommonShortcuts } from '@/hooks/useKeyboardShortcuts';
 import SettingsDialog from '@/components/SettingsDialog';
 const Index = () => {
   const [activeTab, setActiveTab] = useState('upload');
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
+  const [processingFiles, setProcessingFiles] = useState<File[]>([]);
   const [showSettings, setShowSettings] = useState(false);
   const [connStatus, setConnStatus] = useState<'unknown' | 'ok' | 'error'>('unknown');
+  const mainInterfaceRef = useRef<HTMLDivElement>(null);
+
+  // Keyboard shortcuts
+  useCommonShortcuts({
+    onUpload: () => { setActiveTab('upload'); scrollToMainInterface(); },
+    onSearch: () => { setActiveTab('search'); scrollToMainInterface(); },
+    onInsights: () => { setActiveTab('insights'); scrollToMainInterface(); },
+    onSettings: () => setShowSettings(true),
+  });
+
+  const scrollToMainInterface = () => {
+    mainInterfaceRef.current?.scrollIntoView({ 
+      behavior: 'smooth', 
+      block: 'start' 
+    });
+    setActiveTab('upload');
+  };
 
   const checkHealth = async () => {
     try {
@@ -32,19 +53,41 @@ const Index = () => {
   }, []);
 
   const handleFilesSelected = async (files: File[]) => {
+    // Optimistic update - add files to processing immediately
+    setProcessingFiles(prev => [...prev, ...files]);
     setUploadedFiles(prev => [...prev, ...files]);
+    
     for (const file of files) {
       try {
         const res = await ingestFile(file);
-        toast({ title: 'Ingested', description: `${file.name} → ${res.chunksInserted} chunks` });
+        toast({ 
+          title: 'Processing Complete', 
+          description: `${file.name} → ${res.chunksInserted} chunks indexed`
+        });
+        
+        // Remove from processing list
+        setProcessingFiles(prev => prev.filter(f => f !== file));
       } catch (e: any) {
         console.error(e);
         const msg = String(e?.message || 'Unexpected error');
+        
+        // Remove from processing list on error
+        setProcessingFiles(prev => prev.filter(f => f !== file));
+        setUploadedFiles(prev => prev.filter(f => f !== file));
+        
         if (/401|Unauthorized|Forbidden/i.test(msg)) {
-          toast({ title: 'Unauthorized', description: 'Please set your API Key in Settings' });
+          toast({ 
+            title: 'Unauthorized', 
+            description: 'Please set your API Key in Settings',
+            variant: 'destructive'
+          });
           setShowSettings(true);
         } else {
-          toast({ title: 'Ingest failed', description: `${file.name}: ${msg}` });
+          toast({ 
+            title: 'Processing Failed', 
+            description: `${file.name}: ${msg}`,
+            variant: 'destructive'
+          });
         }
       }
     }
@@ -139,7 +182,7 @@ const Index = () => {
               <Button
                 size="lg"
                 className="bg-gradient-event-horizon hover:cosmic-glow text-lg px-8 py-4 h-auto"
-                onClick={() => setActiveTab('upload')}
+                onClick={scrollToMainInterface}
               >
                 Start Uploading Knowledge
                 <ArrowRight className="w-5 h-5 ml-2" />
@@ -211,7 +254,7 @@ const Index = () => {
       </div>
 
       {/* Main Interface */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+      <div ref={mainInterfaceRef} className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20" id="main-interface">
         {/* Connectivity Banner + Settings */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-6">
           <div className="text-sm">
@@ -247,32 +290,46 @@ const Index = () => {
                 Our AI will analyze and organize everything for intelligent retrieval.
               </p>
             </div>
-            <FileUpload onFilesSelected={handleFilesSelected} />
             
-            {uploadedFiles.length > 0 && (
+            <ErrorBoundary>
+              <FileUpload onFilesSelected={handleFilesSelected} />
+            </ErrorBoundary>
+            
+            {processingFiles.length > 0 && (
+              <ProcessingFiles count={processingFiles.length} />
+            )}
+            
+            {uploadedFiles.length > 0 ? (
               <Card className="p-6 bg-gradient-void border-border">
                 <h4 className="text-lg font-semibold text-foreground mb-4">
                   Recently Uploaded ({uploadedFiles.length} files)
                 </h4>
                 <div className="space-y-2">
-                  {uploadedFiles.slice(-5).map((file, index) => (
-                    <div key={index} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-                      <div className="flex items-center space-x-3">
-                        <div className="w-8 h-8 rounded bg-primary/20 flex items-center justify-center">
-                          <Upload className="w-4 h-4 text-primary" />
-                        </div>
-                        <div>
-                          <div className="font-medium text-foreground">{file.name}</div>
-                          <div className="text-sm text-muted-foreground">
-                            {(file.size / 1024).toFixed(1)} KB
+                  {uploadedFiles.slice(-5).map((file, index) => {
+                    const isProcessing = processingFiles.includes(file);
+                    return (
+                      <div key={index} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                        <div className="flex items-center space-x-3">
+                          <div className="w-8 h-8 rounded bg-primary/20 flex items-center justify-center">
+                            <Upload className="w-4 h-4 text-primary" />
+                          </div>
+                          <div>
+                            <div className="font-medium text-foreground">{file.name}</div>
+                            <div className="text-sm text-muted-foreground">
+                              {(file.size / 1024).toFixed(1)} KB
+                            </div>
                           </div>
                         </div>
+                        <Badge variant={isProcessing ? 'secondary' : 'default'}>
+                          {isProcessing ? 'Processing...' : 'Indexed'}
+                        </Badge>
                       </div>
-                      <Badge variant="secondary">Processing</Badge>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </Card>
+            ) : (
+              <NoFilesUploaded onUpload={() => {}} />
             )}
           </TabsContent>
 
@@ -284,7 +341,9 @@ const Index = () => {
                 across all your uploaded knowledge.
               </p>
             </div>
-            <SearchInterface />
+            <ErrorBoundary>
+              <SearchInterface />
+            </ErrorBoundary>
           </TabsContent>
 
           <TabsContent value="insights">
@@ -295,7 +354,9 @@ const Index = () => {
                 Get weekly reflection reports powered by advanced AI analysis.
               </p>
             </div>
-            <InsightsDashboard />
+            <ErrorBoundary>
+              <InsightsDashboard />
+            </ErrorBoundary>
           </TabsContent>
         </Tabs>
       </div>
