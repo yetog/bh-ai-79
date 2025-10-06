@@ -1,83 +1,96 @@
-# Black Hole AI Backend (IONOS Cloud, Node.js + LangChain.js)
+# Black Hole AI - FastAPI Backend
 
-This is a minimal backend skeleton you can deploy on IONOS Cloud. It exposes two endpoints:
-- POST /api/ingest: Uploads a file, stores it in IONOS S3, chunks + embeds with IONOS Model Hub, and writes chunks to Postgres + pgvector.
-- POST /api/query: Runs RAG (similarity search in pgvector + LLM generation) and returns answer + citations.
+Production-ready FastAPI backend for Black Hole AI with multi-tenant RAG capabilities.
 
-The code uses standard, OpenAI-compatible endpoints provided by IONOS Model Hub.
+## Quick Start
 
-## Quick start
-
-1) Provision infra
-- Postgres 16 with pgvector extension
-- IONOS S3 bucket (e.g., `blackhole-raw`)
-
-2) Apply schema (psql)
-```sql
--- Extensions (Postgres 16)
-CREATE EXTENSION IF NOT EXISTS pgcrypto; -- gen_random_uuid()
-CREATE EXTENSION IF NOT EXISTS vector;   -- pgvector
-
--- Documents
-CREATE TABLE IF NOT EXISTS documents (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  title text,
-  source_uri text, -- S3 URL or pointer
-  mime_type text,
-  bytes bigint,
-  metadata jsonb,
-  created_at timestamptz DEFAULT now()
-);
-
--- Chunks
-CREATE TABLE IF NOT EXISTS document_chunks (
-  id bigserial PRIMARY KEY,
-  document_id uuid REFERENCES documents(id) ON DELETE CASCADE,
-  chunk_index int NOT NULL,
-  content text NOT NULL,
-  tokens int,
-  embedding vector(1536) -- adjust to your embedding model dimensions
-);
-
-CREATE INDEX IF NOT EXISTS document_chunks_document_id_idx ON document_chunks(document_id);
-CREATE INDEX IF NOT EXISTS document_chunks_embedding_idx ON document_chunks USING ivfflat (embedding vector_cosine_ops) WITH (lists = 100);
+1. **Copy environment file:**
+```bash
+cp .env.example .env
+# Edit .env with your credentials
 ```
 
-3) Configure environment
-Create a `.env` file (do NOT commit) next to this README:
-```
-PORT=8000
-API_KEY=supersecret
-
-# Postgres
-DATABASE_URL=postgresql://user:password@host:5432/blackhole
-
-# IONOS S3 (S3-compatible)
-S3_ENDPOINT=https://s3.eu-central-1.ionoscloud.com
-S3_REGION=eu-central-1
-S3_BUCKET=blackhole-raw
-S3_ACCESS_KEY_ID=... 
-S3_SECRET_ACCESS_KEY=...
-
-# IONOS Model Hub (OpenAI-compatible)
-IONOS_BASE_URL=https://openai.inference.de-txl.ionos.com/v1
-IONOS_API_KEY=...  
-IONOS_EMBEDDING_MODEL=text-embedding-3-small
-IONOS_COMPLETION_MODEL=meta-llama/llama-3.1-8b-instruct
+2. **Run with Docker Compose:**
+```bash
+docker-compose up -d
 ```
 
-4) Install & run
-```
-cd backend
-npm i
-npm run dev
+3. **Run migrations:**
+```bash
+docker-compose exec api alembic upgrade head
 ```
 
-5) Test
-- Ingest: curl -H "X-API-Key: supersecret" -F file=@/path/to/file.txt http://localhost:8000/api/ingest
-- Query: curl -H "X-API-Key: supersecret" -H "Content-Type: application/json" -d '{"query":"What did we decide about the launch?","topK":5}' http://localhost:8000/api/query
+4. **Test the API:**
+```bash
+curl http://localhost:8000/health
+```
 
-## Notes
-- The server is intentionally minimal. Add loaders for PDFs/CSV/mbox/markdown as needed.
-- Keep secrets out of the frontend; the UI reads base URL and optional API key from localStorage for testing only.
-- Adjust `vector(1536)` to match your embedding model dimensions.
+## Architecture
+
+- **FastAPI** - Modern async Python web framework
+- **PostgreSQL + pgvector** - Database with vector search
+- **Redis + RQ** - Job queue for async processing
+- **SQLAlchemy** - ORM with Alembic migrations
+- **Pydantic** - Data validation and settings
+- **JWT** - Authentication with role-based access control
+
+## API Endpoints
+
+### Authentication
+- `POST /api/auth/register` - Create account
+- `POST /api/auth/login` - Login with credentials
+
+### Datasets
+- `POST /api/datasets` - Create dataset
+- `GET /api/datasets` - List datasets
+- `GET /api/datasets/{id}` - Get dataset
+- `PATCH /api/datasets/{id}` - Update dataset
+- `DELETE /api/datasets/{id}` - Delete dataset
+
+### Uploads
+- `POST /api/uploads/sign` - Get presigned S3 URL
+- `POST /api/uploads/complete` - Notify upload complete
+
+### Query
+- `POST /api/query` - RAG query with citations
+
+### Processing
+- `GET /api/processing/{job_id}/status` - Check job status
+- `POST /api/datasets/{id}/reindex` - Trigger reindex
+
+### Stats
+- `GET /api/stats` - System statistics
+- `GET /api/metrics/processing` - Processing metrics
+
+## Development
+
+```bash
+# Install dependencies
+pip install -r requirements.txt
+
+# Run locally
+uvicorn main:app --reload
+
+# Create migration
+alembic revision --autogenerate -m "description"
+
+# Run migrations
+alembic upgrade head
+```
+
+## Security
+
+- JWT-based authentication
+- Tenant isolation at DB level
+- Role-based access control (admin, user, viewer)
+- Input validation with Pydantic
+- SQL injection prevention with SQLAlchemy
+- S3 presigned URLs for direct uploads
+
+## Next Steps
+
+- [ ] Implement worker jobs (file ingestion, chunking, embedding)
+- [ ] Integrate IONOS Model Hub for embeddings and completions
+- [ ] Add SSE for real-time processing updates
+- [ ] Implement reranking and hybrid search
+- [ ] Add monitoring and observability
