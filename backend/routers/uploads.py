@@ -77,8 +77,9 @@ async def upload_complete(
     db.commit()
     db.refresh(document)
     
-    # TODO: Queue processing job
-    job_id = f"job-{uuid.uuid4()}"
+    # Queue processing job
+    from queue import enqueue_ingest
+    job_id = enqueue_ingest(str(document.id), current_user.tenant_id)
     
     return UploadCompleteResponse(
         document_id=document.id,
