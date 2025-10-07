@@ -83,3 +83,14 @@ class Chunk(Base):
     metadata = Column(JSONB)
     embedding = Column(Vector(1536))
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+class Query(Base):
+    __tablename__ = "queries"
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    tenant_id = Column(String(100), ForeignKey("tenants.id"), nullable=False, index=True)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
+    query_text = Column(Text, nullable=False)
+    results_count = Column(Integer, default=0)
+    processing_time = Column(Integer, default=0)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
