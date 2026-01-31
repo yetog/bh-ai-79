@@ -1,0 +1,175 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
+All colors MUST be HSL.
+*/
+
+@layer base {
+  :root {
+    /* Black Hole AI Design System - Cosmic Theme */
+    --background: 240 10% 3.9%;
+    --foreground: 0 0% 98%;
+
+    --card: 240 10% 3.9%;
+    --card-foreground: 0 0% 98%;
+
+    --popover: 240 10% 3.9%;
+    --popover-foreground: 0 0% 98%;
+
+    /* Cosmic Purple - Event Horizon */
+    --primary: 270 80% 50%;
+    --primary-foreground: 0 0% 98%;
+    --primary-glow: 270 80% 60%;
+
+    /* Deep Space Blue */
+    --secondary: 220 90% 15%;
+    --secondary-foreground: 0 0% 98%;
+
+    /* Cosmic Void */
+    --muted: 240 10% 8%;
+    --muted-foreground: 240 5% 65%;
+
+    /* Electric Cyan Accent */
+    --accent: 180 100% 50%;
+    --accent-foreground: 240 10% 3.9%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 240 10% 15%;
+    --input: 240 10% 15%;
+    --ring: 270 80% 50%;
+
+    --radius: 0.75rem;
+
+    /* Cosmic Gradients */
+    --gradient-cosmic: linear-gradient(135deg, hsl(270 80% 20%), hsl(240 90% 10%), hsl(220 100% 5%));
+    --gradient-event-horizon: linear-gradient(135deg, hsl(270 80% 50%), hsl(260 70% 40%));
+    --gradient-void: linear-gradient(180deg, hsl(240 10% 8%), hsl(240 10% 3.9%));
+    --gradient-glow: radial-gradient(ellipse at center, hsl(270 80% 50% / 0.3), transparent 70%);
+
+    /* Cosmic Shadows & Effects */
+    --shadow-cosmic: 0 0 50px hsl(270 80% 50% / 0.3);
+    --shadow-void: 0 20px 40px hsl(240 10% 0% / 0.8);
+    --shadow-glow: 0 0 30px hsl(180 100% 50% / 0.4);
+
+    /* Animations */
+    --transition-cosmic: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    --animation-glow: glow 2s ease-in-out infinite alternate;
+
+    --sidebar-background: 0 0% 98%;
+
+    --sidebar-foreground: 240 5.3% 26.1%;
+
+    --sidebar-primary: 240 5.9% 10%;
+
+    --sidebar-primary-foreground: 0 0% 98%;
+
+    --sidebar-accent: 240 4.8% 95.9%;
+
+    --sidebar-accent-foreground: 240 5.9% 10%;
+
+    --sidebar-border: 220 13% 91%;
+
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+
+  .dark {
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
+
+    --popover: 222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
+
+    --primary: 210 40% 98%;
+    --primary-foreground: 222.2 47.4% 11.2%;
+
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
+
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 212.7 26.8% 83.9%;
+    --sidebar-background: 240 5.9% 10%;
+    --sidebar-foreground: 240 4.8% 95.9%;
+    --sidebar-primary: 224.3 76.3% 48%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 3.7% 15.9%;
+    --sidebar-accent-foreground: 240 4.8% 95.9%;
+    --sidebar-border: 240 3.7% 15.9%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    background: var(--gradient-cosmic);
+    min-height: 100vh;
+  }
+
+  /* Cosmic Animations */
+  @keyframes glow {
+    from {
+      box-shadow: 0 0 20px hsl(270 80% 50% / 0.3);
+    }
+    to {
+      box-shadow: 0 0 40px hsl(270 80% 50% / 0.6);
+    }
+  }
+
+  @keyframes float {
+    0%, 100% {
+      transform: translateY(0px);
+    }
+    50% {
+      transform: translateY(-10px);
+    }
+  }
+
+  @keyframes pulse-glow {
+    0%, 100% {
+      box-shadow: 0 0 30px hsl(180 100% 50% / 0.3);
+    }
+    50% {
+      box-shadow: 0 0 50px hsl(180 100% 50% / 0.6);
+    }
+  }
+
+  /* Utility Classes */
+  .cosmic-glow {
+    box-shadow: var(--shadow-cosmic);
+    animation: var(--animation-glow);
+  }
+
+  .void-shadow {
+    box-shadow: var(--shadow-void);
+  }
+
+  .accent-glow {
+    box-shadow: var(--shadow-glow);
+    animation: pulse-glow 3s ease-in-out infinite;
+  }
+
+  .cosmic-transition {
+    transition: var(--transition-cosmic);
+  }
+}
