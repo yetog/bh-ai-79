@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Brain, Search, Upload, Lightbulb, ArrowRight, Zap, FolderOpen } from 'lucide-react';
+import { Brain, Search, Upload, Lightbulb, ArrowRight, Zap, Star, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -11,10 +11,10 @@ import { StatsCards } from '@/components/analytics/StatsCards';
 import InsightsDashboard from '@/components/ui/insights-dashboard';
 import { ErrorBoundary } from '@/components/ui/error-boundary';
 import { NoFilesUploaded, ProcessingFiles } from '@/components/ui/empty-states';
-import { FileExplorer } from '@/components/explorer/FileExplorer';
 import blackHoleHero from '@/assets/black-hole-hero.jpg';
 import { cn } from '@/lib/utils';
-import { health } from '@/lib/api';
+import { ingestFile, health } from '@/lib/api';
+import { toast } from '@/hooks/use-toast';
 import { useCommonShortcuts } from '@/hooks/useKeyboardShortcuts';
 import SettingsDialog from '@/components/SettingsDialog';
 const Index = () => {
@@ -212,39 +212,22 @@ const Index = () => {
           </Button>
         </div>
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8">
-          <TabsList className="grid w-full grid-cols-4 bg-muted/50 p-1">
-            <TabsTrigger value="files" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground transition-all duration-200">
-              <FolderOpen className="w-4 h-4 mr-2" />
-              Files
-            </TabsTrigger>
-            <TabsTrigger value="upload" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground transition-all duration-200">
+          <TabsList className="grid w-full grid-cols-3 bg-muted/50 p-1">
+            <TabsTrigger value="upload" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
               <Upload className="w-4 h-4 mr-2" />
               Upload
             </TabsTrigger>
-            <TabsTrigger value="search" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground transition-all duration-200">
+            <TabsTrigger value="search" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
               <Search className="w-4 h-4 mr-2" />
               Search
             </TabsTrigger>
-            <TabsTrigger value="insights" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground transition-all duration-200">
+            <TabsTrigger value="insights" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
               <Brain className="w-4 h-4 mr-2" />
               Insights
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="files" className="animate-fade-in">
-            <div className="text-center space-y-4 mb-8">
-              <h3 className="text-2xl font-bold text-foreground">Your Knowledge Base</h3>
-              <p className="text-muted-foreground max-w-2xl mx-auto">
-                Browse, organize, and manage all your uploaded files and datasets.
-                View processing status and access indexed content.
-              </p>
-            </div>
-            <ErrorBoundary>
-              <FileExplorer onUploadClick={() => setActiveTab('upload')} />
-            </ErrorBoundary>
-          </TabsContent>
-
-          <TabsContent value="upload" className="space-y-6 animate-fade-in">
+          <TabsContent value="upload" className="space-y-6">
             <div className="text-center space-y-4 mb-8">
               <h3 className="text-2xl font-bold text-foreground">Feed the Black Hole</h3>
               <p className="text-muted-foreground max-w-2xl mx-auto">
@@ -295,7 +278,7 @@ const Index = () => {
             )}
           </TabsContent>
 
-          <TabsContent value="search" className="animate-fade-in">
+          <TabsContent value="search">
             <div className="text-center space-y-4 mb-8">
               <h3 className="text-2xl font-bold text-foreground">Semantic Discovery</h3>
               <p className="text-muted-foreground max-w-2xl mx-auto">
@@ -315,7 +298,7 @@ const Index = () => {
             </div>
           </TabsContent>
 
-          <TabsContent value="insights" className="animate-fade-in">
+          <TabsContent value="insights">
             <div className="text-center space-y-4 mb-8">
               <h3 className="text-2xl font-bold text-foreground">AI-Generated Insights</h3>
               <p className="text-muted-foreground max-w-2xl mx-auto">
