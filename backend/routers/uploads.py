@@ -78,7 +78,7 @@ async def upload_complete(
     db.refresh(document)
     
     # Queue processing job
-    from queue import enqueue_ingest
+    from redis_queue import enqueue_ingest
     job_id = enqueue_ingest(str(document.id), current_user.tenant_id)
     
     return UploadCompleteResponse(

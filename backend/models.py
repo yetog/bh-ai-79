@@ -64,7 +64,7 @@ class Document(Base):
     mime_type = Column(String(255))
     size_bytes = Column(BigInteger)
     checksum = Column(String(64))
-    metadata = Column(JSONB)
+    doc_metadata = Column(JSONB)
     processing_status = Column(String(50), default="pending")
     processing_error = Column(Text)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -80,7 +80,7 @@ class Chunk(Base):
     page = Column(Integer)
     text = Column(Text, nullable=False)
     tokens = Column(Integer)
-    metadata = Column(JSONB)
+    doc_metadata = Column(JSONB)
     embedding = Column(Vector(1536))
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 

@@ -5,7 +5,7 @@ from database import get_db
 from schemas import ProcessingStatus, TokenData
 from auth import get_current_user
 from models import Document, Dataset
-from queue import get_job_status, enqueue_reindex
+from redis_queue import get_job_status, enqueue_reindex
 import asyncio
 import json
 
@@ -69,7 +69,7 @@ async def get_file_details(
         "size_bytes": document.size_bytes,
         "status": document.processing_status,
         "error": document.processing_error,
-        "metadata": document.metadata,
+        "metadata": document.doc_metadata,
         "created_at": document.created_at
     }
 

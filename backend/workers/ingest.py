@@ -109,7 +109,7 @@ def process_document(document_id: str, tenant_id: str):
             
             # Update document status
             document.processing_status = "completed"
-            document.metadata = {
+            document.doc_metadata = {
                 'total_chunks': len(chunks),
                 'total_pages': extracted.get('total_pages', 1)
             }
