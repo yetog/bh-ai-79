@@ -126,7 +126,7 @@ Logic:
 
 **Chat screen:** Header with back arrow + persona name. Message thread (user right-aligned, assistant left-aligned). Citations shown as collapsed chips under each assistant message. Text input + Send button fixed at bottom.
 
-**Nav:** Single "Agents" link added to the existing sidebar. No other layout changes.
+**Nav:** "Meet Your Agents" CTA button added to the hero section of `src/pages/Index.tsx` alongside the existing hero buttons. No sidebar exists — this is the correct integration point.
 
 **State:** Conversation history held in React local state per session. No persistence required for v1.
 
@@ -155,7 +155,7 @@ After both sub-agents complete:
 | `src/components/agents/PersonaChat.tsx` | Sub-agent 2 | New file |
 | `src/components/agents/PersonaCard.tsx` | Sub-agent 2 | New file |
 | `src/App.tsx` | Integration | Add `/agents` route |
-| `src/components/layout/Sidebar.tsx` (or equivalent) | Integration | Add Agents nav link |
+| `src/pages/Index.tsx` | Integration | Add "Meet Your Agents" hero CTA button |
 
 ---
 
