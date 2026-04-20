@@ -10,48 +10,50 @@ router = APIRouter()
 
 @router.post("/auth/register", response_model=Token)
 async def register(user_data: UserCreate, db: Session = Depends(get_db)):
-    # Check if user exists
-    existing_user = db.query(User).filter(User.email == user_data.email).first()
-    if existing_user:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email already registered"
+    try:
+        existing_user = db.query(User).filter(User.email == user_data.email).first()
+        if existing_user:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Email already registered"
+            )
+
+        user = User(
+            email=user_data.email,
+            password_hash=get_password_hash(user_data.password)
         )
-    
-    # Create user
-    user = User(
-        email=user_data.email,
-        password_hash=get_password_hash(user_data.password)
-    )
-    db.add(user)
-    db.flush()
-    
-    # Create tenant
-    tenant_name = user_data.tenant_name or f"{user_data.email.split('@')[0]}-workspace"
-    tenant_id = f"{tenant_name.lower().replace(' ', '-')}-{str(uuid.uuid4())[:8]}"
-    
-    tenant = Tenant(id=tenant_id, name=tenant_name)
-    db.add(tenant)
-    
-    # Link user to tenant
-    user_tenant = UserTenant(user_id=user.id, tenant_id=tenant.id)
-    db.add(user_tenant)
-    
-    # Assign admin role
-    user_role = UserRole(user_id=user.id, tenant_id=tenant.id, role=AppRole.ADMIN)
-    db.add(user_role)
-    
-    db.commit()
-    
-    # Create access token
-    access_token = create_access_token(data={
-        "sub": str(user.id),
-        "email": user.email,
-        "tenant_id": tenant.id,
-        "role": AppRole.ADMIN.value
-    })
-    
-    return {"access_token": access_token, "token_type": "bearer"}
+        db.add(user)
+        db.flush()
+
+        tenant_name = user_data.tenant_name or f"{user_data.email.split('@')[0]}-workspace"
+        tenant_id = f"{tenant_name.lower().replace(' ', '-')}-{str(uuid.uuid4())[:8]}"
+
+        tenant = Tenant(id=tenant_id, name=tenant_name)
+        db.add(tenant)
+        db.flush()
+
+        user_tenant = UserTenant(user_id=user.id, tenant_id=tenant.id)
+        db.add(user_tenant)
+        db.flush()
+
+        user_role = UserRole(user_id=user.id, tenant_id=tenant.id, role=AppRole.ADMIN)
+        db.add(user_role)
+        db.commit()
+
+        access_token = create_access_token(data={
+            "sub": str(user.id),
+            "email": user.email,
+            "tenant_id": tenant.id,
+            "role": AppRole.ADMIN.value
+        })
+
+        return {"access_token": access_token, "token_type": "bearer"}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Registration failed: {str(e)}")
 
 @router.post("/auth/login", response_model=Token)
 async def login(credentials: UserLogin, db: Session = Depends(get_db)):
