@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Brain, Search, Upload, Lightbulb, ArrowRight, Zap, Star, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -23,6 +24,7 @@ const Index = () => {
   const [processingFiles, setProcessingFiles] = useState<File[]>([]);
   const [showSettings, setShowSettings] = useState(false);
   const [connStatus, setConnStatus] = useState<'unknown' | 'ok' | 'error'>('unknown');
+  const navigate = useNavigate();
   const mainInterfaceRef = useRef<HTMLDivElement>(null);
 
   // Keyboard shortcuts
@@ -145,6 +147,15 @@ const Index = () => {
                 <ArrowRight className="w-5 h-5 ml-2" />
               </Button>
               
+              <Button
+                size="lg"
+                className="bg-primary/20 border border-primary/50 text-primary hover:bg-primary/30 cosmic-glow text-lg px-8 py-4 h-auto"
+                onClick={() => navigate('/agents')}
+              >
+                <Users className="w-5 h-5 mr-2" />
+                Meet Your Agents
+              </Button>
+
               <Button
                 variant="outline"
                 size="lg"

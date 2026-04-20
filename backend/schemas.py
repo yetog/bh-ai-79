@@ -125,3 +125,18 @@ class ProcessingStatus(BaseModel):
     progress: Optional[float] = None
     error: Optional[str] = None
     result: Optional[Dict[str, Any]] = None
+
+# Agent Chat Schemas
+class ConversationTurn(BaseModel):
+    role: str
+    content: str
+
+class AgentChatRequest(BaseModel):
+    persona: str = Field(pattern="^[a-z-]+$")
+    message: str = Field(min_length=1, max_length=2000)
+    conversation_history: List[ConversationTurn] = Field(default_factory=list)
+
+class AgentChatResponse(BaseModel):
+    answer: str
+    citations: List[Citation]
+    processing_time: float

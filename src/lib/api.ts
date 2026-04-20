@@ -243,6 +243,47 @@ export const getProcessingStatus = async (jobId: string) => {
   return response.json();
 };
 
+// Agent Chat
+export interface ConversationTurn {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
+export interface AgentCitation {
+  document_id: string;
+  filename: string;
+  page: number;
+  chunk_text: string;
+  score: number;
+}
+
+export interface AgentChatResponse {
+  answer: string;
+  citations: AgentCitation[];
+  processing_time: number;
+}
+
+export async function agentChat(
+  persona: string,
+  message: string,
+  conversationHistory: ConversationTurn[]
+): Promise<AgentChatResponse> {
+  const res = await fetch(`${getApiBaseUrl()}/api/agents/chat`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders() },
+    body: JSON.stringify({
+      persona,
+      message,
+      conversation_history: conversationHistory,
+    }),
+  });
+  if (!res.ok) {
+    const msg = await res.text().catch(() => res.statusText);
+    throw new Error(msg || `Agent chat failed with ${res.status}`);
+  }
+  return res.json();
+}
+
 // Simple health check to verify connectivity and auth
 export async function health(): Promise<{ ok: boolean }> {
   const res = await fetch(`${getApiBaseUrl()}/health`, {
