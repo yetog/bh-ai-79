@@ -30,6 +30,8 @@ export const getApiBaseUrl = () =>
 
 export const getHeaders = () => {
   const headers: Record<string, string> = {};
+  const token = localStorage.getItem("BLACKHOLE_TOKEN");
+  if (token) headers["Authorization"] = `Bearer ${token}`;
   const apiKey = localStorage.getItem("BLACKHOLE_API_KEY");
   if (apiKey) headers["X-API-Key"] = apiKey;
   return headers;
@@ -280,6 +282,38 @@ export async function agentChat(
   if (!res.ok) {
     const msg = await res.text().catch(() => res.statusText);
     throw new Error(msg || `Agent chat failed with ${res.status}`);
+  }
+  return res.json();
+}
+
+// Auth
+export interface AuthResponse {
+  access_token: string;
+  token_type: string;
+}
+
+export async function login(email: string, password: string): Promise<AuthResponse> {
+  const res = await fetch(`${getApiBaseUrl()}/api/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password }),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.detail || 'Login failed');
+  }
+  return res.json();
+}
+
+export async function register(email: string, password: string, tenantName?: string): Promise<AuthResponse> {
+  const res = await fetch(`${getApiBaseUrl()}/api/auth/register`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password, tenant_name: tenantName }),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.detail || 'Registration failed');
   }
   return res.json();
 }

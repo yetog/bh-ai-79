@@ -18,7 +18,9 @@ import { ingestFile, health } from '@/lib/api';
 import { toast } from '@/hooks/use-toast';
 import { useCommonShortcuts } from '@/hooks/useKeyboardShortcuts';
 import SettingsDialog from '@/components/SettingsDialog';
+import { useAuth } from '@/hooks/useAuth';
 const Index = () => {
+  const { logout } = useAuth();
   const [activeTab, setActiveTab] = useState('upload');
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
   const [processingFiles, setProcessingFiles] = useState<File[]>([]);
@@ -218,9 +220,14 @@ const Index = () => {
             {connStatus === 'error' && <span className="text-destructive">Cannot reach backend. Check settings.</span>}
             {connStatus === 'unknown' && <span className="text-muted-foreground">Checking connectivity...</span>}
           </div>
-          <Button variant="outline" size="sm" onClick={() => setShowSettings(true)}>
-            Settings
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={() => setShowSettings(true)}>
+              Settings
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => { logout(); navigate('/login'); }}>
+              Sign Out
+            </Button>
+          </div>
         </div>
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-8">
           <TabsList className="grid w-full grid-cols-3 bg-muted/50 p-1">
