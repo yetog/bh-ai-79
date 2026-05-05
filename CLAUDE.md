@@ -98,6 +98,43 @@ The platform is now fully operational. You can proceed with:
 
 ---
 
+## Agent Bus (Claude-to-Claude Communication)
+
+You are the **executor** Claude. Another Claude instance (orchestrator, on a developer's
+laptop) can send you shell commands through the agent bus.
+
+### Checking for commands
+
+When asked to "check the bus" or "check for messages":
+
+```bash
+curl -s -H "Authorization: Bearer $BUS_SECRET" \
+  https://zaylegend.com/bh-ai/api/api/bus/pop
+```
+
+If the response has a command (not `{"id": null}`), execute it in the specified `cwd`,
+then post the result back:
+
+```bash
+curl -s -X POST \
+  -H "Authorization: Bearer $BUS_SECRET" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "message_id": "<id>",
+    "stdout": "<output>",
+    "stderr": "<errors>",
+    "exit_code": 0,
+    "duration_ms": 1234
+  }' \
+  https://zaylegend.com/bh-ai/api/api/bus/respond
+```
+
+All commands arriving here have already passed the safety tier check (BLOCKED and
+unconfirmed DESTRUCTIVE commands never reach the queue). Still use judgment.
+`BUS_SECRET` is in your environment — never log or expose it.
+
+---
+
 ## Tech Stack
 - **Frontend:** React 18 + Vite + shadcn/ui + TailwindCSS
 - **Backend:** FastAPI + PostgreSQL + pgvector + Redis/RQ

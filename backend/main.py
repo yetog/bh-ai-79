@@ -7,7 +7,7 @@ import json
 from datetime import datetime
 from config import get_settings
 from database import engine, Base
-from routers import auth, datasets, uploads, query, processing, stats, agents
+from routers import auth, datasets, uploads, query, processing, stats, agents, bus
 
 settings = get_settings()
 
@@ -161,6 +161,7 @@ app.include_router(query.router, prefix=settings.API_V1_PREFIX, tags=["query"])
 app.include_router(processing.router, prefix=settings.API_V1_PREFIX, tags=["processing"])
 app.include_router(stats.router, prefix=settings.API_V1_PREFIX, tags=["stats"])
 app.include_router(agents.router, prefix=settings.API_V1_PREFIX, tags=["agents"])
+app.include_router(bus.router, prefix=settings.API_V1_PREFIX, tags=["bus"])
 
 if __name__ == "__main__":
     import uvicorn

@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "agent-bus": {
+      "command": "python",
+      "args": ["mcp_bus_server.py"],
+      "env": {
+        "BUS_API_URL": "https://zaylegend.com/bh-ai/api/api",
+        "BUS_SECRET": "EME0515mUzp8XyVLyHvCyIPDYsuA_cnrFnzDqIcQQ8I"
+      }
+    }
+  }
+}
