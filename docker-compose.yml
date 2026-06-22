@@ -80,6 +80,12 @@ services:
     volumes:
       - ./backend:/app
     command: rq worker --url redis://redis:6379/0
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -f 'rq worker' || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
     restart: unless-stopped
     logging:
       driver: "json-file"
